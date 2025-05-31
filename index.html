@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Test Serial + Video</title>
+  <title>Bluetooth + Video</title>
   <style>
     html, body {
       margin: 0;
@@ -62,10 +62,10 @@
 
 <div id="fullscreen"></div>
 
-<video id="myVideo" src="data/prova.mp4" preload="auto"></video>
+<video id="myVideo" src="data/prova.mp4" preload="auto" loop></video>
 
 <div id="ui">
-  <button id="connect">Connetti</button>
+  <button id="connect">Connetti via Bluetooth</button>
   <div id="output">In attesa di connessione...</div>
 </div>
 
@@ -75,75 +75,55 @@
   const fullscreen = document.getElementById('fullscreen');
   const video = document.getElementById('myVideo');
 
-  let port;
-  let reader;
   let videoPlaying = false;
+  let bluetoothCharacteristic;
 
-  async function connectSerial() {
+  connectBtn.addEventListener('click', async () => {
     try {
-      port = await navigator.serial.requestPort();
-      await port.open({ baudRate: 9600 });
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: [0xFFE0] }] // HM-10 usa spesso questo UUID per il servizio seriale
+      });
 
-      const decoder = new TextDecoderStream();
-      port.readable.pipeTo(decoder.writable);
-      const inputStream = decoder.readable;
-      reader = inputStream.getReader();
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService(0xFFE0);
+      bluetoothCharacteristic = await service.getCharacteristic(0xFFE1); // caratteristica del canale seriale
 
-      output.textContent = "Connesso! In ascolto...\n";
+      await bluetoothCharacteristic.startNotifications();
+      bluetoothCharacteristic.addEventListener('characteristicvaluechanged', handleData);
 
-      let buffer = "";
+      output.textContent = "Connesso via Bluetooth!\n";
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        if (value) {
-          output.textContent += value;
-          output.scrollTop = output.scrollHeight;
-
-          buffer += value;
-
-          let newlineIndex;
-          while ((newlineIndex = buffer.indexOf('\n')) >= 0) {
-            let line = buffer.slice(0, newlineIndex).trim();
-            buffer = buffer.slice(newlineIndex + 1);
-
-            const numero = parseInt(line);
-            if (!isNaN(numero)) {
-              console.log("Ricevuto:", numero);
-
-              if (numero >= 100) {
-                fullscreen.style.backgroundColor = "red";
-                if (!videoPlaying) {
-                  video.style.display = "block";
-                  video.currentTime = 0;
-                  video.play();
-                  videoPlaying = true;
-                }
-              } else {
-                fullscreen.style.backgroundColor = "black";
-                if (videoPlaying) {
-                  video.pause();
-                  video.currentTime = 0;
-                  video.style.display = "none";
-                  videoPlaying = false;
-                }
-              }
-            }
-          }
-        }
-      }
-    } catch (err) {
-      output.textContent += "\nErrore: " + err + "\n";
-    }
-  }
-
-  connectBtn.addEventListener('click', () => {
-    if ("serial" in navigator) {
-      connectSerial();
-    } else {
-      output.textContent = "Il tuo browser non supporta la Web Serial API.";
+    } catch (error) {
+      output.textContent += `Errore: ${error}\n`;
     }
   });
+
+  function handleData(event) {
+    const value = new TextDecoder().decode(event.target.value).trim();
+    output.textContent += value + "\n";
+    output.scrollTop = output.scrollHeight;
+
+    const numero = parseInt(value);
+    if (!isNaN(numero)) {
+      if (numero >= 100) {
+        fullscreen.style.backgroundColor = "red";
+        if (!videoPlaying) {
+          video.style.display = "block";
+          video.currentTime = 0;
+          video.play();
+          videoPlaying = true;
+        }
+      } else {
+        fullscreen.style.backgroundColor = "black";
+        if (videoPlaying) {
+          video.pause();
+          video.currentTime = 0;
+          video.style.display = "none";
+          videoPlaying = false;
+        }
+      }
+    }
+  }
 </script>
 
 </body>
