@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bluetooth + Video</title>
+  <title>Bluetooth + Video con Audio</title>
   <style>
     html, body {
       margin: 0;
@@ -62,7 +62,7 @@
 
 <div id="fullscreen"></div>
 
-<video id="myVideo" src="data/prova.mp4" preload="auto" loop></video>
+<video id="myVideo" preload="auto" playsinline></video>
 
 <div id="ui">
   <button id="connect">Connetti via Bluetooth</button>
@@ -81,18 +81,17 @@
   connectBtn.addEventListener('click', async () => {
     try {
       const device = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [0xFFE0] }] // HM-10 usa spesso questo UUID per il servizio seriale
+        filters: [{ services: [0xFFE0] }]
       });
 
       const server = await device.gatt.connect();
       const service = await server.getPrimaryService(0xFFE0);
-      bluetoothCharacteristic = await service.getCharacteristic(0xFFE1); // caratteristica del canale seriale
+      bluetoothCharacteristic = await service.getCharacteristic(0xFFE1);
 
       await bluetoothCharacteristic.startNotifications();
       bluetoothCharacteristic.addEventListener('characteristicvaluechanged', handleData);
 
       output.textContent = "Connesso via Bluetooth!\n";
-
     } catch (error) {
       output.textContent += `Errore: ${error}\n`;
     }
@@ -103,25 +102,51 @@
     output.textContent += value + "\n";
     output.scrollTop = output.scrollHeight;
 
-    const numero = parseInt(value);
-    if (!isNaN(numero)) {
-      if (numero >= 100) {
-        fullscreen.style.backgroundColor = "red";
-        if (!videoPlaying) {
-          video.style.display = "block";
-          video.currentTime = 0;
-          video.play();
-          videoPlaying = true;
-        }
-      } else {
-        fullscreen.style.backgroundColor = "black";
-        if (videoPlaying) {
-          video.pause();
-          video.currentTime = 0;
-          video.style.display = "none";
-          videoPlaying = false;
-        }
-      }
+    const matches = value.match(/S1:(\d+),S2:(\d+),S3:(\d+)/);
+    if (!matches) return;
+
+    const s1 = parseInt(matches[1]);
+    const s2 = parseInt(matches[2]);
+    const s3 = parseInt(matches[3]);
+
+    const overThreshold = [s1 > 60, s2 > 60, s3 > 60];
+    const count = overThreshold.filter(Boolean).length;
+
+    if (count === 1) {
+      if (s1 > 60) playVideo("data/neutro.mp4");
+      else if (s2 > 60) playVideo("data/eutrofizzazione.mp4");
+      else if (s3 > 60) playVideo("data/acido.mp4");
+    } else {
+      stopVideo();
+    }
+  }
+
+  function playVideo(src) {
+    // Se il video è già quello giusto e sta già suonando, non fare nulla
+    if (video.src.endsWith(src) && !video.paused) {
+      video.style.display = "block";
+      videoPlaying = true;
+      return;
+    }
+
+    video.src = src;
+    video.style.display = "block";
+    video.muted = false;        // AUDIO ATTIVO
+    video.volume = 1;           // VOLUME AL MASSIMO
+
+    video.play().catch((err) => {
+      output.textContent += `Errore nella riproduzione: ${err}\n`;
+    });
+
+    videoPlaying = true;
+  }
+
+  function stopVideo() {
+    if (videoPlaying) {
+      video.pause();
+      video.currentTime = 0;
+      video.style.display = "none";
+      videoPlaying = false;
     }
   }
 </script>
