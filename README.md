@@ -1,0 +1,2 @@
+Server per la connessione via Bluetooth tra un dispositivo mobile e Arduino.
+Tramite il modulo Bluetooth HM-10, è stato possibile trasmettere i dati seriali dei sensori di distanza TOF, che rilevano la presenza o l'assenza di un oggetto nell’installazione. Quando la distanza rilevata supera una determinata soglia, uno script JavaScript elabora i dati seriali e attiva il video corrispondente. A ciascuno dei tre sensori collegati ad Arduino è associato un video specifico di risposta.
