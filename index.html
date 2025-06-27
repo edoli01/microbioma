@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bluetooth + Video con Audio</title>
+  <title>App Microbioma</title>
   <style>
     html, body {
       margin: 0;
@@ -13,7 +13,7 @@
       background-color: black;
     }
 
-    #fullscreen {
+    #schermo {
       position: fixed;
       top: 0;
       left: 0;
@@ -24,7 +24,7 @@
       z-index: 1;
     }
 
-    #ui {
+    #info_connessione {
       position: absolute;
       top: 20px;
       left: 20px;
@@ -38,7 +38,7 @@
       font-size: 1rem;
     }
 
-    #output {
+    #dati {
       margin-top: 10px;
       background: #111;
       padding: 10px;
@@ -60,19 +60,19 @@
 </head>
 <body>
 
-<div id="fullscreen"></div>
+<div id="schermo"></div>
 
 <video id="myVideo" preload="auto" playsinline></video>
 
-<div id="ui">
+<div id="info_connessione">
   <button id="connect">Connetti via Bluetooth</button>
-  <div id="output">In attesa di connessione...</div>
+  <div id="dati">In attesa di connessione...</div>
 </div>
 
 <script>
   const connectBtn = document.getElementById('connect');
-  const output = document.getElementById('output');
-  const fullscreen = document.getElementById('fullscreen');
+  const dati = document.getElementById('dati');
+  const schermo = document.getElementById('schermo');
   const video = document.getElementById('myVideo');
 
   let videoPlaying = false;
@@ -94,16 +94,17 @@
       await bluetoothCharacteristic.startNotifications();
       bluetoothCharacteristic.addEventListener('characteristicvaluechanged', handleData);
 
-      output.textContent = "Connesso via Bluetooth!\n";
+      // Nascondi info_connessione dopo la connessione
+      document.getElementById('info_connessione').style.display = "none";
     } catch (error) {
-      output.textContent += `Errore: ${error}\n`;
+      dati.textContent += `Errore: ${error}\n`;
     }
   });
 
   function handleData(event) {
     const value = new TextDecoder().decode(event.target.value).trim();
-    output.textContent += value + "\n";
-    output.scrollTop = output.scrollHeight;
+    dati.textContent += value + "\n";
+    dati.scrollTop = dati.scrollHeight;
 
     const matches = value.match(/S1:(\d+),S2:(\d+),S3:(\d+)/);
     if (!matches) return;
@@ -125,10 +126,8 @@
   }
 
   function playVideo(src) {
-    // Se è già in attesa dello stesso video, non fare nulla
     if (isPending && lastActiveSrc === src) return;
 
-    // Ferma eventuali timeout precedenti
     clearTimeout(videoTimeout);
     isPending = true;
     lastActiveSrc = src;
@@ -136,7 +135,6 @@
     videoTimeout = setTimeout(() => {
       isPending = false;
 
-      // Se il video è già quello giusto e sta già suonando, non fare nulla
       if (video.src.endsWith(src) && !video.paused) {
         video.style.display = "block";
         videoPlaying = true;
@@ -149,11 +147,11 @@
       video.volume = 1;
 
       video.play().catch((err) => {
-        output.textContent += `Errore nella riproduzione: ${err}\n`;
+        dati.textContent += `Errore nella riproduzione: ${err}\n`;
       });
 
       videoPlaying = true;
-    }, 9000); // Delay di 2 secondi
+    }, 9000);
   }
 
   function stopVideo() {
