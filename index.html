@@ -77,6 +77,9 @@
 
   let videoPlaying = false;
   let bluetoothCharacteristic;
+  let videoTimeout = null;
+  let lastActiveSrc = null;
+  let isPending = false;
 
   connectBtn.addEventListener('click', async () => {
     try {
@@ -122,27 +125,43 @@
   }
 
   function playVideo(src) {
-    // Se il video è già quello giusto e sta già suonando, non fare nulla
-    if (video.src.endsWith(src) && !video.paused) {
+    // Se è già in attesa dello stesso video, non fare nulla
+    if (isPending && lastActiveSrc === src) return;
+
+    // Ferma eventuali timeout precedenti
+    clearTimeout(videoTimeout);
+    isPending = true;
+    lastActiveSrc = src;
+
+    videoTimeout = setTimeout(() => {
+      isPending = false;
+
+      // Se il video è già quello giusto e sta già suonando, non fare nulla
+      if (video.src.endsWith(src) && !video.paused) {
+        video.style.display = "block";
+        videoPlaying = true;
+        return;
+      }
+
+      video.src = src;
       video.style.display = "block";
+      video.muted = false;
+      video.volume = 1;
+
+      video.play().catch((err) => {
+        output.textContent += `Errore nella riproduzione: ${err}\n`;
+      });
+
       videoPlaying = true;
-      return;
-    }
-
-    video.src = src;
-    video.style.display = "block";
-    video.muted = false;        // AUDIO ATTIVO
-    video.volume = 1;           // VOLUME AL MASSIMO
-
-    video.play().catch((err) => {
-      output.textContent += `Errore nella riproduzione: ${err}\n`;
-    });
-
-    videoPlaying = true;
+    }, 9000); // Delay di 2 secondi
   }
 
   function stopVideo() {
-    if (videoPlaying) {
+    clearTimeout(videoTimeout);
+    isPending = false;
+    lastActiveSrc = null;
+
+    if (!video.paused || videoPlaying) {
       video.pause();
       video.currentTime = 0;
       video.style.display = "none";
