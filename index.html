@@ -113,7 +113,7 @@
     const s2 = parseInt(matches[2]);
     const s3 = parseInt(matches[3]);
 
-    const overThreshold = [s1 > 60, s2 > 60, s3 > 60];
+    const overThreshold = [s1 > 50, s2 > 50, s3 > 50];
     const count = overThreshold.filter(Boolean).length;
 
     if (count === 1) {
